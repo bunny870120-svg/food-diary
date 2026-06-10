@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="美食日記" />
+  <title>美食日記</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --coral: #D85A30;
+      --coral-light: #FAECE7;
+      --coral-dark: #712B13;
+      --amber: #EF9F27;
+      --amber-light: #FAEEDA;
+      --green-light: #EAF3DE;
+      --green-dark: #27500A;
+      --red-light: #FCEBEB;
+      --red-dark: #791F1F;
+      --pink-light: #FBEAF0;
+      --pink-dark: #72243E;
+      --text: #1a1a18;
+      --text-2: #5F5E5A;
+      --text-3: #888780;
+      --bg: #ffffff;
+      --bg-2: #F7F6F2;
+      --bg-3: #F1EFE8;
+      --border: rgba(0,0,0,0.12);
+      --border-2: rgba(0,0,0,0.22);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Helvetica Neue', sans-serif; background: var(--bg-2); color: var(--text); min-height: 100vh; }
+
+    /* header */
+    .header { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 16px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 640px; margin: 0 auto; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .header h1 { font-size: 18px; font-weight: 600; color: var(--coral); letter-spacing: -0.3px; }
+    .header-actions { display: flex; gap: 8px; }
+
+    /* tabs */
+    .tabs { background: var(--bg); border-bottom: 0.5px solid var(--border); position: sticky; top: 56px; z-index: 99; }
+    .tabs-inner { max-width: 640px; margin: 0 auto; display: flex; }
+    .tab { flex: 1; padding: 12px 0; font-size: 14px; text-align: center; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; font-weight: 500; }
+    .tab.active { color: var(--coral); border-bottom-color: var(--coral); }
+
+    /* content */
+    .content { max-width: 640px; margin: 0 auto; padding: 16px; }
+
+    /* stats */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    .stat { background: var(--bg); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 0.5px solid var(--border); }
+    .stat-num { font-size: 24px; font-weight: 600; color: var(--text); }
+    .stat-label { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+    /* form card */
+    .form-card { background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 16px; margin-bottom: 16px; }
+    .form-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+    .field { margin-bottom: 12px; }
+    .field label { font-size: 12px; color: var(--text-2); display: block; margin-bottom: 4px; font-weight: 500; }
+    .field input, .field select, .field textarea {
+      width: 100%; font-size: 15px; padding: 10px 12px;
+      border: 0.5px solid var(--border-2); border-radius: var(--radius-sm);
+      background: var(--bg-2); color: var(--text);
+      font-family: inherit; -webkit-appearance: none; appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 72px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    /* star rating */
+    .stars { display: flex; gap: 6px; margin-top: 4px; }
+    .star { font-size: 28px; cursor: pointer; color: var(--bg-3); transition: color .1s; user-select: none; line-height: 1; }
+    .star.on { color: var(--amber); }
+
+    /* checkboxes */
+    .check-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+    .check-item { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; }
+    .check-item input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--coral); }
+
+    /* buttons */
+    .btn { padding: 10px 20px; border-radius: var(--radius-sm); font-size: 15px; font-family: inherit; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border-2); background: var(--bg); color: var(--text); transition: all .12s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--coral); color: #fff; border-color: transparent; }
+    .btn-primary:hover { background: var(--coral-dark); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+    /* filter pills */
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+    .pill { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border-2); background: var(--bg); color: var(--text-2); white-space: nowrap; transition: all .12s; }
+    .pill.active { background: var(--coral); color: #fff; border-color: transparent; }
+
+    /* restaurant cards */
+    .r-card { background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 14px 16px; margin-bottom: 10px; }
+    .r-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .r-name { font-size: 16px; font-weight: 600; color: var(--text); }
+    .r-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .r-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; border: 0.5px solid var(--border); color: var(--text-2); }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: opacity .1s; }
+    .badge:active { opacity: 0.7; }
+    .badge-ok { background: var(--green-light); color: var(--green-dark); }
+    .badge-todo { background: var(--red-light); color: var(--red-dark); }
+    .badge-revisit { background: var(--pink-light); color: var(--pink-dark); }
+    .r-todo { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .r-note { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 10px; background: var(--bg-2); border-radius: var(--radius-sm); padding: 8px 10px; }
+    .r-footer { display: flex; align-items: center; justify-content: space-between; }
+    .r-stars { display: flex; gap: 2px; }
+    .r-star { font-size: 15px; color: var(--amber); }
+    .r-star.off { color: var(--bg-3); }
+    .r-actions { display: flex; gap: 4px; align-items: center; }
+    .icon-btn { background: none; border: none; cursor: pointer; font-size: 18px; padding: 6px; border-radius: var(--radius-sm); color: var(--text-3); }
+    .icon-btn:hover { background: var(--bg-2); color: var(--text); }
+    .maps-link { font-size: 12px; color: var(--coral); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 3px; }
+    .empty { text-align: center; padding: 48px 16px; color: var(--text-3); font-size: 15px; }
+    .empty-icon { font-size: 40px; margin-bottom: 10px; }
+    .alert { background: var(--amber-light); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: #633806; margin-bottom: 12px; font-weight: 500; }
+
+    /* modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+    .modal { background: var(--bg); border-radius: 20px 20px 0 0; width: 100%; max-width: 640px; padding: 20px 20px 32px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+    .modal-close { float: right; background: var(--bg-2); border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; cursor: pointer; color: var(--text-2); }
+
+    /* connecting state */
+    .loading { text-align: center; padding: 48px; color: var(--text-3); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--bg-3); border-top-color: var(--coral); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* config screen */
+    .config-screen { max-width: 480px; margin: 40px auto; background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 28px; }
+    .config-screen h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .config-screen p { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 16px; }
+    .config-screen .step { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; }
+    .step-num { width: 22px; height: 22px; background: var(--coral); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+    code { background: var(--bg-2); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: monospace; }
+
+    @media (max-width: 480px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .row3 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading"><div class="spinner"></div>載入中...</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FIREBASE_CONFIG_KEY = 'fooddiary_firebase_config';
+let db = null;
+let restaurants = [];
+let currentFilter = 'all';
+let currentRating = 0;
+let editingId = null;
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(FIREBASE_CONFIG_KEY)); } catch { return null; }
+}
+function saveConfig(cfg) {
+  localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+async function initFirebase(cfg) {
+  const app = initializeApp(cfg);
+  db = getDatabase(app);
+  listenToData();
+}
+
+function listenToData() {
+  const restaurantsRef = ref(db, 'restaurants');
+  onValue(restaurantsRef, snap => {
+    restaurants = [];
+    const val = snap.val();
+    if (val) {
+      Object.entries(val).forEach(([id, data]) => restaurants.push({ id, ...data }));
+      restaurants.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    }
+    renderApp();
+  });
+}
+
+async function addRestaurant(data) {
+  await push(ref(db, 'restaurants'), data);
+}
+async function updateRestaurant(id, data) {
+  await update(ref(db, `restaurants/${id}`), data);
+}
+async function deleteRestaurant(id) {
+  await remove(ref(db, `restaurants/${id}`));
+}
+
+function renderApp() {
+  const app = document.getElementById('app');
+  const cfg = getConfig();
+  if (!cfg || !db) {
+    renderConfig();
+    return;
+  }
+  app.innerHTML = `
+    <div class="header">
+      <div class="header-inner">
+        <h1>🍜 美食日記</h1>
+        <div class="header-actions">
+          <button class="btn btn-sm" onclick="window.showAddModal()">＋ 新增</button>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tabs-inner">
+        <div class="tab active" id="tab-list" onclick="window.switchTab('list')">📋 清單</div>
+        <div class="tab" id="tab-add" onclick="window.switchTab('add')">＋ 新增</div>
+        <div class="tab" id="tab-stats" onclick="window.switchTab('stats')">📊 統計</div>
+      </div>
+    </div>
+    <div class="content" id="main-content"></div>
+    <div id="modal-container"></div>
+  `;
+  window.switchTab('list');
+}
+
+function renderConfig() {
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="config-screen">
+        <h2>🍜 美食日記</h2>
+        <p>請先輸入你的 Firebase 設定，讓大家可以共用同一份清單。</p>
+        <div class="step"><div class="step-num">1</div><div>前往 <a href="https://console.firebase.google.com" target="_blank" style="color:var(--coral)">console.firebase.google.com</a>，建立新專案</div></div>
+        <div class="step"><div class="step-num">2</div><div>在專案中建立 <strong>Realtime Database</strong>，規則設為測試模式</div></div>
+        <div class="step"><div class="step-num">3</div><div>到「專案設定 > 一般」，新增 Web App，複製 firebaseConfig 的內容</div></div>
+        <div class="step"><div class="step-num">4</div><div>把以下欄位貼入</div></div>
+        <div class="field" style="margin-top:16px"><label>apiKey</label><input id="cfg-apiKey" placeholder="AIza..." /></div>
+        <div class="field"><label>authDomain</label><input id="cfg-authDomain" placeholder="your-app.firebaseapp.com" /></div>
+        <div class="field"><label>databaseURL</label><input id="cfg-databaseURL" placeholder="https://your-app-default-rtdb.firebaseio.com" /></div>
+        <div class="field"><label>projectId</label><input id="cfg-projectId" placeholder="your-app" /></div>
+        <div class="field"><label>storageBucket</label><input id="cfg-storageBucket" placeholder="your-app.appspot.com" /></div>
+        <div class="field"><label>messagingSenderId</label><input id="cfg-messagingSenderId" placeholder="123456789" /></div>
+        <div class="field"><label>appId</label><input id="cfg-appId" placeholder="1:123:web:abc..." /></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="window.saveFirebaseConfig()">連線並開始使用</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-top:12px">設定只存在你的裝置上，朋友也需要輸入一次同樣的設定。</p>
+      </div>
+    </div>`;
+}
+
+window.saveFirebaseConfig = async function() {
+  const cfg = {
+    apiKey: document.getElementById('cfg-apiKey').value.trim(),
+    authDomain: document.getElementById('cfg-authDomain').value.trim(),
+    databaseURL: document.getElementById('cfg-databaseURL').value.trim(),
+    projectId: document.getElementById('cfg-projectId').value.trim(),
+    storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+    appId: document.getElementById('cfg-appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.databaseURL) { alert('請至少填入 apiKey 和 databaseURL'); return; }
+  saveConfig(cfg);
+  await initFirebase(cfg);
+};
+
+window.switchTab = function(tab) {
+  ['list','add','stats'].forEach(t => {
+    const el = document.getElementById('tab-'+t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  const content = document.getElementById('main-content');
+  if (tab === 'list') renderList(content);
+  if (tab === 'add') renderAddForm(content);
+  if (tab === 'stats') renderStats(content);
+};
+
+window.showAddModal = function() {
+  window.switchTab('add');
+};
+
+function renderStats(container) {
+  const total = restaurants.length;
+  const noReview = restaurants.filter(r => !r.review).length;
+  const noPhoto = restaurants.filter(r => !r.photo).length;
+  const revisit = restaurants.filter(r => r.revisit).length;
+  const avgRating = total ? (restaurants.filter(r=>r.rating>0).reduce((s,r)=>s+r.rating,0) / (restaurants.filter(r=>r.rating>0).length||1)).toFixed(1) : '-';
+  const types = {};
+  restaurants.forEach(r => { if (r.type) types[r.type] = (types[r.type]||0)+1; });
+  const topType = Object.entries(types).sort((a,b)=>b[1]-a[1])[0];
+  container.innerHTML = `
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+      <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">總共吃了幾家</div></div>
+      <div class="stat"><div class="stat-num" style="color:${noReview>0?'#A32D2D':'inherit'}">${noReview}</div><div class="stat-label">待寫評論</div></div>
+      <div class="stat"><div class="stat-num" style="color:${noPhoto>0?'#854F0B':'inherit'}">${noPhoto}</div><div class="stat-label">待補照片</div></div>
+      <div class="stat"><div class="stat-num">${revisit}</div><div class="stat-label">想再訪</div></div>
+      <div class="stat"><div class="stat-num">${avgRating}</div><div class="stat-label">平均評分</div></div>
+      <div class="stat"><div class="stat-num" style="font-size:16px">${topType ? topType[0] : '-'}</div><div class="stat-label">最愛料理類型</div></div>
+    </div>
+    <div class="form-card">
+      <h2>各類型分佈</h2>
+      ${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([t,c])=>`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:13px;width:80px;color:var(--text-2);flex-shrink:0">${t}</span>
+          <div style="flex:1;background:var(--bg-3);border-radius:4px;height:8px">
+            <div style="background:var(--coral);width:${Math.round(c/total*100)}%;height:100%;border-radius:4px"></div>
+          </div>
+          <span style="font-size:13px;color:var(--text-3);width:28px;text-align:right">${c}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderList(container) {
+  let filtered = restaurants;
+  if (currentFilter === 'no-review') filtered = restaurants.filter(r => !r.review);
+  if (currentFilter === 'no-photo') filtered = restaurants.filter(r => !r.photo);
+  if (currentFilter === 'revisit') filtered = restaurants.filter(r => r.revisit);
+
+  const pending = restaurants.filter(r => !r.review || !r.photo).length;
+
+  container.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="stat-num">${restaurants.length}</div><div class="stat-label">吃過</div></div>
+      <div class="stat"><div class="stat-num" style="color:${restaurants.filter(r=>!r.review).length>0?'#A32D2D':'inherit'}">${restaurants.filter(r=>!r.review).length}</div><div class="stat-label">待評論</div></div>
+      <div class="stat"><div class="stat-num" style="color:${restaurants.filter(r=>!r.photo).length>0?'#854F0B':'inherit'}">${restaurants.filter(r=>!r.photo).length}</div><div class="stat-label">待拍照</div></div>
+      <div class="stat"><div class="stat-num">${restaurants.filter(r=>r.revisit).length}</div><div class="stat-label">想再訪</div></div>
+    </div>
+    ${pending > 0 ? `<div class="alert">⏰ 還有 ${pending} 家餐廳等你記錄評論或照片！</div>` : ''}
+    <div class="filters">
+      <div class="pill ${currentFilter==='all'?'active':''}" onclick="window.setFilter('all')">全部 (${restaurants.length})</div>
+      <div class="pill ${currentFilter==='no-review'?'active':''}" onclick="window.setFilter('no-review')">✍️ 待評論 (${restaurants.filter(r=>!r.review).length})</div>
+      <div class="pill ${currentFilter==='no-photo'?'active':''}" onclick="window.setFilter('no-photo')">📸 待拍照 (${restaurants.filter(r=>!r.photo).length})</div>
+      <div class="pill ${currentFilter==='revisit'?'active':''}" onclick="window.setFilter('revisit')">❤️ 想再訪 (${restaurants.filter(r=>r.revisit).length})</div>
+    </div>
+    ${filtered.length === 0
+      ? `<div class="empty"><div class="empty-icon">🍽️</div>${restaurants.length === 0 ? '快去吃頓好的，然後記下來！' : '沒有符合條件的餐廳'}</div>`
+      : filtered.map(r => renderRestaurantCard(r)).join('')
+    }
+  `;
+}
+
+function renderRestaurantCard(r) {
+  const stars = [1,2,3,4,5].map(i=>`<span class="r-star${i<=r.rating?'':' off'}">★</span>`).join('');
+  const tags = [r.type, r.area, r.price ? `NT$${r.price}/人` : ''].filter(Boolean);
+  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(r.name)}`;
+  return `
+    <div class="r-card">
+      <div class="r-header">
+        <div>
+          <div class="r-name">${esc(r.name)}</div>
+          <div class="r-meta">${r.date}${r.addedBy ? ' · 由 '+esc(r.addedBy)+' 新增' : ''}</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">
+          ${r.revisit ? `<span class="badge badge-revisit">❤️ 再訪</span>` : ''}
+          <button class="icon-btn" onclick="window.deleteR('${r.id}')" aria-label="刪除">🗑</button>
+        </div>
+      </div>
+      ${tags.length ? `<div class="r-tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="r-todo">
+        <span class="badge ${r.photo?'badge-ok':'badge-todo'}" onclick="window.toggleField('${r.id}','photo')">
+          ${r.photo ? '📸 已拍照' : '📸 未拍照'}
+        </span>
+        <span class="badge ${r.review?'badge-ok':'badge-todo'}" onclick="window.toggleField('${r.id}','review')">
+          ${r.review ? '✍️ 已評論' : '✍️ 未評論'}
+        </span>
+      </div>
+      ${r.note ? `<div class="r-note">${esc(r.note)}</div>` : ''}
+      <div class="r-footer">
+        <div class="r-stars">${r.rating > 0 ? stars : '<span style="font-size:12px;color:var(--text-3)">未評分</span>'}</div>
+        <a class="maps-link" href="${mapsUrl}" target="_blank">📍 Google Maps</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderAddForm(container) {
+  container.innerHTML = `
+    <div class="form-card">
+      <h2>新增餐廳</h2>
+      <div class="row2">
+        <div class="field"><label>餐廳名稱 *</label><input id="f-name" placeholder="例：鼎泰豐信義店" /></div>
+        <div class="field"><label>用餐日期 *</label><input type="date" id="f-date" value="${new Date().toISOString().slice(0,10)}" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>你的名字</label><input id="f-who" placeholder="例：小美" /></div>
+        <div class="field"><label>地區</label><input id="f-area" placeholder="例：信義區" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>類型</label>
+          <select id="f-type">
+            <option value="">選擇...</option>
+            ${['台灣料理','日式','韓式','義式','法式','中式','泰式','美式','早午餐','甜點／咖啡','火鍋','燒肉','其他'].map(t=>`<option>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>人均 NT$</label><input type="number" id="f-price" placeholder="例：600" /></div>
+      </div>
+      <div class="field">
+        <label>評分</label>
+        <div class="stars" id="star-input">
+          ${[1,2,3,4,5].map(i=>`<span class="star" data-v="${i}" onclick="window.setRating(${i})">★</span>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label>已完成</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" id="f-photo" /> 📸 拍照了</label>
+          <label class="check-item"><input type="checkbox" id="f-review" /> ✍️ 寫評論了</label>
+          <label class="check-item"><input type="checkbox" id="f-revisit" /> ❤️ 想再去</label>
+        </div>
+      </div>
+      <div class="field"><label>筆記（推薦菜、心得...）</label><textarea id="f-note" placeholder="例：小籠包必點，記得預約"></textarea></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="window.submitForm()">記錄這家 🍴</button>
+        <button class="btn" onclick="window.switchTab('list')">取消</button>
+      </div>
+    </div>
+  `;
+  currentRating = 0;
+  updateStarDisplay();
+}
+
+window.setRating = function(v) {
+  currentRating = v;
+  updateStarDisplay();
+};
+
+function updateStarDisplay() {
+  document.querySelectorAll('#star-input .star').forEach(s => {
+    s.classList.toggle('on', parseInt(s.dataset.v) <= currentRating);
+  });
+}
+
+window.submitForm = async function() {
+  const name = document.getElementById('f-name')?.value.trim();
+  const date = document.getElementById('f-date')?.value;
+  if (!name) { alert('請輸入餐廳名稱'); return; }
+  if (!date) { alert('請選擇日期'); return; }
+  await addRestaurant({
+    name, date,
+    addedBy: document.getElementById('f-who')?.value.trim() || '',
+    area: document.getElementById('f-area')?.value.trim() || '',
+    type: document.getElementById('f-type')?.value || '',
+    price: document.getElementById('f-price')?.value || '',
+    rating: currentRating,
+    photo: document.getElementById('f-photo')?.checked || false,
+    review: document.getElementById('f-review')?.checked || false,
+    revisit: document.getElementById('f-revisit')?.checked || false,
+    note: document.getElementById('f-note')?.value.trim() || '',
+    createdAt: Date.now(),
+  });
+  window.switchTab('list');
+};
+
+window.setFilter = function(f) {
+  currentFilter = f;
+  const content = document.getElementById('main-content');
+  if (content) renderList(content);
+};
+
+window.toggleField = async function(id, field) {
+  const r = restaurants.find(x => x.id === id);
+  if (r) await updateRestaurant(id, { [field]: !r[field] });
+};
+
+window.deleteR = async function(id) {
+  if (confirm('確定要刪除這筆記錄嗎？')) await deleteRestaurant(id);
+};
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+const cfg = getConfig();
+if (cfg) {
+  initFirebase(cfg);
+} else {
+  renderConfig();
+}
+</script>
+</body>
+</html>
