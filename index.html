@@ -372,7 +372,15 @@ function renderAddForm(container) {
         <div class="field"><label>用餐日期 *</label><input type="date" id="f-date" value="${new Date().toISOString().slice(0,10)}" /></div>
       </div>
       <div class="row2">
-        <div class="field"><label>你的名字</label><input id="f-who" placeholder="例：小美" /></div>
+        <div class="field"><label>你的名字</label>
+        <div style="display:flex;gap:6px">
+          <select id="f-who-preset" onchange="if(this.value)document.getElementById('f-who').value=this.value" style="width:100px;flex-shrink:0">
+            <option value="">選擇...</option>
+            <option value="餅仔">餅仔</option>
+            <option value="木頭">木頭</option>
+          </select>
+          <input id="f-who" placeholder="或自己輸入" style="flex:1" />
+        </div></div>
         <div class="field"><label>地區</label><input id="f-area" placeholder="例：信義區" /></div>
       </div>
       <div class="row2">
@@ -392,13 +400,32 @@ function renderAddForm(container) {
       </div>
       <div class="field">
         <label>已完成</label>
-        <div class="check-group">
-          <label class="check-item"><input type="checkbox" id="f-photo" /> 📸 拍照了</label>
-          <label class="check-item"><input type="checkbox" id="f-review" /> ✍️ 寫評論了</label>
-          <label class="check-item"><input type="checkbox" id="f-revisit" /> ❤️ 想再去</label>
+        <div class="check-group" style="gap:8px">
+          <button type="button" id="btn-photo" onclick="toggleCheck('photo')" style="padding:7px 14px;border-radius:20px;border:1.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:14px;font-family:inherit">📸 拍照了</button>
+          <button type="button" id="btn-review" onclick="toggleCheck('review')" style="padding:7px 14px;border-radius:20px;border:1.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:14px;font-family:inherit">✍️ 寫評論了</button>
+          <button type="button" id="btn-revisit" onclick="toggleCheck('revisit')" style="padding:7px 14px;border-radius:20px;border:1.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:14px;font-family:inherit">❤️ 想再去</button>
+          <input type="hidden" id="f-photo" value="0" />
+          <input type="hidden" id="f-review" value="0" />
+          <input type="hidden" id="f-revisit" value="0" />
         </div>
       </div>
-      <div class="field"><label>筆記（推薦菜、心得...）</label><textarea id="f-note" placeholder="例：小籠包必點，記得預約"></textarea></div>
+      <div class="field">
+        <label>筆記（推薦菜、心得...）</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <button type="button" onclick="addEmoji('🔥 必點！')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">🔥 必點</button>
+          <button type="button" onclick="addEmoji('📍 地址：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">📍 地址</button>
+          <button type="button" onclick="addEmoji('⏰ 等待：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">⏰ 等待</button>
+          <button type="button" onclick="addEmoji('💰 價位：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">💰 價位</button>
+          <button type="button" onclick="addEmoji('👥 適合：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">👥 適合</button>
+          <button type="button" onclick="addEmoji('🚇 交通：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">🚇 交通</button>
+          <button type="button" onclick="addEmoji('⚠️ 注意：')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">⚠️ 注意</button>
+          <button type="button" onclick="addEmoji('😋 ')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">😋</button>
+          <button type="button" onclick="addEmoji('😍 ')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">😍</button>
+          <button type="button" onclick="addEmoji('😐 ')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">😐</button>
+          <button type="button" onclick="addEmoji('👎 ')" style="padding:4px 10px;border-radius:16px;border:0.5px solid var(--border-2);background:var(--bg);cursor:pointer;font-size:13px">👎</button>
+        </div>
+        <textarea id="f-note" placeholder="例：小籠包必點，記得預約"></textarea>
+      </div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="window.submitForm()">記錄這家 🍴</button>
         <button class="btn" onclick="window.switchTab('list')">取消</button>
@@ -420,6 +447,27 @@ function updateStarDisplay() {
   });
 }
 
+window.toggleCheck = function(field) {
+  const btn = document.getElementById('btn-' + field);
+  const inp = document.getElementById('f-' + field);
+  const active = inp.value === '1';
+  inp.value = active ? '0' : '1';
+  const labels = {photo:'📸 拍照了', review:'✍️ 寫評論了', revisit:'❤️ 想再去'};
+  btn.style.background = active ? 'var(--bg)' : 'var(--coral)';
+  btn.style.color = active ? 'var(--text)' : '#fff';
+  btn.style.borderColor = active ? 'var(--border-2)' : 'var(--coral)';
+};
+
+window.addEmoji = function(text) {
+  const ta = document.getElementById('f-note');
+  const pos = ta.selectionStart;
+  const before = ta.value.substring(0, pos);
+  const after = ta.value.substring(pos);
+  ta.value = before + text + after;
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = pos + text.length;
+};
+
 window.submitForm = async function() {
   const name = document.getElementById('f-name')?.value.trim();
   const date = document.getElementById('f-date')?.value;
@@ -432,12 +480,13 @@ window.submitForm = async function() {
     type: document.getElementById('f-type')?.value || '',
     price: document.getElementById('f-price')?.value || '',
     rating: currentRating,
-    photo: document.getElementById('f-photo')?.checked || false,
-    review: document.getElementById('f-review')?.checked || false,
-    revisit: document.getElementById('f-revisit')?.checked || false,
+    photo: document.getElementById('f-photo')?.value === '1',
+    review: document.getElementById('f-review')?.value === '1',
+    revisit: document.getElementById('f-revisit')?.value === '1',
     note: document.getElementById('f-note')?.value.trim() || '',
     createdAt: Date.now(),
   });
+  ['photo','review','revisit'].forEach(f => { const b=document.getElementById('btn-'+f); if(b){b.style.background='var(--bg)';b.style.color='var(--text)';b.style.borderColor='var(--border-2)';} const i=document.getElementById('f-'+f); if(i)i.value='0'; });
   window.switchTab('list');
 };
 
