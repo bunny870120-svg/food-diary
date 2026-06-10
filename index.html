@@ -202,11 +202,7 @@ async function deleteRestaurant(id) {
 
 function renderApp() {
   const app = document.getElementById('app');
-  const cfg = getConfig();
-  if (!cfg || !db) {
-    renderConfig();
-    return;
-  }
+  if (!db) return;
   app.innerHTML = `
     <div class="header">
       <div class="header-inner">
