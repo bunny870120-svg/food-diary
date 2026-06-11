@@ -737,7 +737,11 @@ function renderPocket(container) {
         </div>
         <div class="field"><label>地區</label><input id="p-area" placeholder="例：中山區" /></div>
       </div>
-      <div class="field"><label>Google Maps 連結（選填）</label><input id="p-url" placeholder="貼上 maps.app.goo.gl/... 連結" /></div>
+      <div class="field">
+        <label>地址（用於地圖定位）</label>
+        <input id="p-address" placeholder="例：台北市中正區忠孝東路一段" />
+      </div>
+      <div class="field"><label>Google Maps 連結（選填）</label><input id="p-url" placeholder="貼上完整連結，例：https://maps.google.com/?q=25.04,121.51" /></div>
       <div class="field"><label>備註</label><input id="p-note" placeholder="例：朋友推薦、需要訂位" /></div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="window.addPocket()">加入口袋清單</button>
@@ -775,6 +779,7 @@ window.addPocket = async function() {
     name,
     type: document.getElementById('p-type')?.value || '',
     area: document.getElementById('p-area')?.value.trim() || '',
+    address: document.getElementById('p-address')?.value.trim() || '',
     url: document.getElementById('p-url')?.value.trim() || '',
     note: document.getElementById('p-note')?.value.trim() || '',
     createdAt: Date.now(),
@@ -825,10 +830,14 @@ function extractCoordsFromUrl(url) {
 async function getCoords(r) {
   if (r.lat && r.lng) return { lat: r.lat, lng: r.lng };
   if (r.url) {
+    // Try to resolve short URLs by fetching
     const c = extractCoordsFromUrl(r.url);
     if (c) return c;
   }
-  const addr = [r.name, r.area, '台灣'].filter(Boolean).join(' ');
+  // Use address field if available, else name + area
+  const addr = r.address
+    ? r.address + ' 台灣'
+    : [r.name, r.area || '台北', '台灣'].filter(Boolean).join(' ');
   return await geocodeAddress(addr);
 }
 
@@ -885,7 +894,7 @@ window.refreshMapMarkers = async function() {
   const bounds = [];
   for (const item of items) {
     const coords = await getCoords(item);
-    if (!coords) { done++; continue; }
+    if (!coords) { done++; if (loading) loading.textContent = `找不到「${item.name}」的座標，請補上地址或 Maps 連結`; continue; }
     await updateRestaurantCoords(item.id, coords, item._type);
     const color = item._type === 'bad' ? '#D83030' : item._type === 'pocket' ? '#3B82F6' : '#16A34A';
     const emoji = item._type === 'bad' ? '💀' : item._type === 'pocket' ? '🔖' : '✅';
@@ -928,3 +937,4 @@ initFirebase();
 </script>
 </body>
 </html>
+
