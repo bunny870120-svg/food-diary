@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-title" content="美食日記" />
   <title>美食日記</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
       --coral: #D85A30;
@@ -231,6 +233,7 @@ function renderApp() {
         <div class="tab" id="tab-add" onclick="window.switchTab('add')">＋ 新增</div>
         <div class="tab" id="tab-stats" onclick="window.switchTab('stats')">📊 統計</div>
         <div class="tab" id="tab-pocket" onclick="window.switchTab('pocket')">🔖 口袋</div>
+        <div class="tab" id="tab-map" onclick="window.switchTab('map')">🗺️ 地圖</div>
       </div>
     </div>
     <div class="content" id="main-content"></div>
@@ -267,7 +270,7 @@ function renderConfig() {
 
 
 window.switchTab = function(tab) {
-  ['list','add','stats','pocket'].forEach(t => {
+  ['list','add','stats','pocket','map'].forEach(t => {
     const el = document.getElementById('tab-'+t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -276,6 +279,7 @@ window.switchTab = function(tab) {
   if (tab === 'add') renderAddForm(content);
   if (tab === 'stats') renderStats(content);
   if (tab === 'pocket') renderPocket(content);
+  if (tab === 'map') renderMap(content);
 };
 
 window.showAddModal = function() {
@@ -316,21 +320,43 @@ function renderStats(container) {
 }
 
 function renderList(container) {
+  const searchVal = (window._searchVal || '').toLowerCase();
   let filtered = restaurants;
   if (currentFilter === 'no-review') filtered = restaurants.filter(r => !r.review);
   if (currentFilter === 'no-photo') filtered = restaurants.filter(r => !r.photo);
   if (currentFilter === 'revisit') filtered = restaurants.filter(r => r.revisit);
+  if (searchVal) filtered = filtered.filter(r =>
+    (r.name||'').toLowerCase().includes(searchVal) ||
+    (r.area||'').toLowerCase().includes(searchVal) ||
+    (r.type||'').toLowerCase().includes(searchVal) ||
+    (r.note||'').toLowerCase().includes(searchVal)
+  );
 
   const pending = restaurants.filter(r => !r.review || !r.photo).length;
 
+  // Group by month
+  const groups = {};
+  filtered.forEach(r => {
+    const key = r.date ? r.date.slice(0,7) : '未知';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  const sortedMonths = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+  if (!window._openMonths) window._openMonths = new Set([sortedMonths[0]]);
+
   container.innerHTML = `
     <div class="stats">
-      <div class="stat"><div class="stat-num">${restaurants.length}</div><div class="stat-label">吃過</div></div>
-      <div class="stat"><div class="stat-num" style="color:${restaurants.filter(r=>!r.review).length>0?'#A32D2D':'inherit'}">${restaurants.filter(r=>!r.review).length}</div><div class="stat-label">待評論</div></div>
-      <div class="stat"><div class="stat-num" style="color:${restaurants.filter(r=>!r.photo).length>0?'#854F0B':'inherit'}">${restaurants.filter(r=>!r.photo).length}</div><div class="stat-label">待拍照</div></div>
-      <div class="stat"><div class="stat-num">${restaurants.filter(r=>r.revisit).length}</div><div class="stat-label">想再訪</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.switchTab('list');window.setFilter('all')"><div class="stat-num">${restaurants.length}</div><div class="stat-label">吃過</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.setFilter('no-review')"><div class="stat-num" style="color:${restaurants.filter(r=>!r.review).length>0?'#A32D2D':'inherit'}">${restaurants.filter(r=>!r.review).length}</div><div class="stat-label">待評論</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.setFilter('no-photo')"><div class="stat-num" style="color:${restaurants.filter(r=>!r.photo).length>0?'#854F0B':'inherit'}">${restaurants.filter(r=>!r.photo).length}</div><div class="stat-label">待拍照</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.setFilter('revisit')"><div class="stat-num">${restaurants.filter(r=>r.revisit).length}</div><div class="stat-label">想再訪</div></div>
     </div>
-    ${pending > 0 ? `<div class="alert">⏰ 還有 ${pending} 家餐廳等你記錄評論或照片！</div>` : ''}
+    ${pending > 0 ? `<div class="alert">⏰ 還有 ${pending} 家等你記錄評論或照片！</div>` : ''}
+    <div style="position:relative;margin-bottom:10px">
+      <input id="search-input" value="${window._searchVal||''}" oninput="window.onSearch(this.value)" placeholder="🔍 搜尋餐廳名稱、地區、類型..." style="width:100%;font-size:15px;padding:10px 12px 10px 36px;border:0.5px solid var(--border-2);border-radius:var(--radius-sm);background:var(--bg-2);color:var(--text);font-family:inherit" />
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+      ${searchVal ? `<button onclick="window.onSearch('')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-3)">✕</button>` : ''}
+    </div>
     <div class="filters">
       <div class="pill ${currentFilter==='all'?'active':''}" onclick="window.setFilter('all')">全部 (${restaurants.length})</div>
       <div class="pill ${currentFilter==='no-review'?'active':''}" onclick="window.setFilter('no-review')">✍️ 待評論 (${restaurants.filter(r=>!r.review).length})</div>
@@ -338,11 +364,38 @@ function renderList(container) {
       <div class="pill ${currentFilter==='revisit'?'active':''}" onclick="window.setFilter('revisit')">❤️ 想再訪 (${restaurants.filter(r=>r.revisit).length})</div>
     </div>
     ${filtered.length === 0
-      ? `<div class="empty"><div class="empty-icon">🍽️</div>${restaurants.length === 0 ? '快去吃頓好的，然後記下來！' : '沒有符合條件的餐廳'}</div>`
-      : filtered.map(r => renderRestaurantCard(r)).join('')
+      ? `<div class="empty"><div class="empty-icon">🍽️</div>${searchVal ? '找不到符合的餐廳' : restaurants.length === 0 ? '快去吃頓好的，然後記下來！' : '沒有符合條件的餐廳'}</div>`
+      : sortedMonths.map(month => {
+          const isOpen = window._openMonths.has(month);
+          const label = month === '未知' ? '未知日期' : month.replace('-', '年') + '月';
+          return `
+            <div style="margin-bottom:4px">
+              <div onclick="window.toggleMonth('${month}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg-3);border-radius:var(--radius-sm);cursor:pointer;user-select:none;margin-bottom:${isOpen?'8px':'0'}">
+                <span style="font-size:14px;font-weight:600;color:var(--text)">📅 ${label}</span>
+                <span style="font-size:13px;color:var(--text-3)">${groups[month].length} 家 ${isOpen?'▲':'▼'}</span>
+              </div>
+              ${isOpen ? groups[month].map(r => renderRestaurantCard(r)).join('') : ''}
+            </div>
+          `;
+        }).join('')
     }
   `;
 }
+
+window.onSearch = function(val) {
+  window._searchVal = val;
+  const content = document.getElementById('main-content');
+  if (content) renderList(content);
+};
+
+window.toggleMonth = function(month) {
+  if (!window._openMonths) window._openMonths = new Set();
+  if (window._openMonths.has(month)) window._openMonths.delete(month);
+  else window._openMonths.add(month);
+  const content = document.getElementById('main-content');
+  if (content) renderList(content);
+};
+
 
 function renderRestaurantCard(r) {
   const stars = [1,2,3,4,5].map(i=>`<span class="r-star${i<=r.rating?'':' off'}">★</span>`).join('');
@@ -747,6 +800,126 @@ window.pocketToVisited = async function(id) {
   alert('已移到吃過清單！記得補上評分和心得 😋');
 };
 
+// ── MAP ──
+let mapInstance = null;
+
+async function geocodeAddress(address) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=tw`);
+    const data = await res.json();
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch(e) {}
+  return null;
+}
+
+function extractCoordsFromUrl(url) {
+  if (!url) return null;
+  // @lat,lng,zoom or ?q=lat,lng
+  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+
+async function getCoords(r) {
+  if (r.lat && r.lng) return { lat: r.lat, lng: r.lng };
+  if (r.url) {
+    const c = extractCoordsFromUrl(r.url);
+    if (c) return c;
+  }
+  const addr = [r.name, r.area, '台灣'].filter(Boolean).join(' ');
+  return await geocodeAddress(addr);
+}
+
+function renderMap(container) {
+  container.innerHTML = `
+    <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:13px;font-weight:600;color:var(--text)">顯示：</span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="map-show-visited" checked onchange="window.refreshMapMarkers()" /> 🟢 吃過</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="map-show-bad" checked onchange="window.refreshMapMarkers()" /> 🔴 踩雷</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="map-show-pocket" checked onchange="window.refreshMapMarkers()" /> 🔵 待吃</label>
+    </div>
+    <div id="map-container" style="width:100%;height:65vh;border-radius:var(--radius);overflow:hidden;border:0.5px solid var(--border)"></div>
+    <div id="map-loading" style="text-align:center;padding:12px;font-size:13px;color:var(--text-3)"></div>
+  `;
+  setTimeout(() => initMap(), 100);
+}
+
+async function initMap() {
+  const el = document.getElementById('map-container');
+  if (!el) return;
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  mapInstance = L.map('map-container').setView([25.05, 121.53], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(mapInstance);
+  window.refreshMapMarkers();
+}
+
+window.mapMarkers = [];
+
+window.refreshMapMarkers = async function() {
+  if (!mapInstance) return;
+  window.mapMarkers.forEach(m => m.remove());
+  window.mapMarkers = [];
+
+  const showVisited = document.getElementById('map-show-visited')?.checked;
+  const showBad = document.getElementById('map-show-bad')?.checked;
+  const showPocket = document.getElementById('map-show-pocket')?.checked;
+  const loading = document.getElementById('map-loading');
+
+  const items = [];
+  if (showVisited || showBad) {
+    restaurants.forEach(r => {
+      const isBad = r.rating > 0 && r.rating <= 2;
+      if (isBad && showBad) items.push({ ...r, _type: 'bad' });
+      else if (!isBad && showVisited) items.push({ ...r, _type: 'visited' });
+    });
+  }
+  if (showPocket) pocketList.forEach(p => items.push({ ...p, _type: 'pocket' }));
+
+  if (loading) loading.textContent = items.length > 0 ? `載入 ${items.length} 個地點中...` : '';
+
+  let done = 0;
+  const bounds = [];
+  for (const item of items) {
+    const coords = await getCoords(item);
+    if (!coords) { done++; continue; }
+    await updateRestaurantCoords(item.id, coords, item._type);
+    const color = item._type === 'bad' ? '#D83030' : item._type === 'pocket' ? '#3B82F6' : '#16A34A';
+    const emoji = item._type === 'bad' ? '💀' : item._type === 'pocket' ? '🔖' : '✅';
+    const icon = L.divIcon({
+      html: `<div style="background:${color};color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff">${emoji}</div>`,
+      iconSize: [32,32], iconAnchor: [16,16], className: ''
+    });
+    const popup = `<div style="font-size:13px;min-width:120px">
+      <div style="font-weight:600;margin-bottom:4px">${esc(item.name)}</div>
+      ${item.date ? `<div style="color:#666">${item.date}</div>` : ''}
+      ${item.type ? `<div style="color:#666">${item.type}</div>` : ''}
+      ${item.rating > 0 ? `<div>${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</div>` : ''}
+      ${item.note ? `<div style="margin-top:4px;color:#444">${esc(item.note).slice(0,60)}</div>` : ''}
+    </div>`;
+    const marker = L.marker([coords.lat, coords.lng], { icon }).bindPopup(popup).addTo(mapInstance);
+    window.mapMarkers.push(marker);
+    bounds.push([coords.lat, coords.lng]);
+    done++;
+    if (loading) loading.textContent = `載入中 ${done}/${items.length}...`;
+  }
+  if (bounds.length > 0) mapInstance.fitBounds(bounds, { padding: [30,30], maxZoom: 15 });
+  if (loading) loading.textContent = bounds.length > 0 ? `顯示 ${bounds.length} 個地點` : '沒有可顯示的地點（請確認餐廳有填地址或 Maps 連結）';
+};
+
+async function updateRestaurantCoords(id, coords, type) {
+  if (type === 'pocket') {
+    const p = pocketList.find(x => x.id === id);
+    if (p && !p.lat) await updatePocketItem(id, { lat: coords.lat, lng: coords.lng });
+  } else {
+    const r = restaurants.find(x => x.id === id);
+    if (r && !r.lat) await updateRestaurant(id, { lat: coords.lat, lng: coords.lng });
+  }
+}
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -755,4 +928,3 @@ initFirebase();
 </script>
 </body>
 </html>
-
