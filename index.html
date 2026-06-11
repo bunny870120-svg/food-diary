@@ -759,6 +759,7 @@ function renderPocket(container) {
             </div>
             <div style="display:flex;gap:6px;align-items:center">
               <button class="btn btn-primary" style="font-size:12px;padding:5px 10px" onclick="window.pocketToVisited('${p.id}')">✅ 去過了！</button>
+              <button class="icon-btn" onclick="window.openEditPocket('${p.id}')">✏️</button>
               <button class="icon-btn" onclick="window.deletePocket('${p.id}')">🗑</button>
             </div>
           </div>
@@ -771,6 +772,46 @@ function renderPocket(container) {
     }
   `;
 }
+
+window.openEditPocket = function(id) {
+  const p = pocketList.find(x => x.id === id);
+  if (!p) return;
+  // Scroll to form and fill in values
+  const container = document.getElementById('main-content');
+  if (!container) return;
+  container.scrollTop = 0;
+  window.scrollTo(0,0);
+  document.getElementById('p-name').value = p.name || '';
+  document.getElementById('p-type').value = p.type || '';
+  document.getElementById('p-area').value = p.area || '';
+  document.getElementById('p-address').value = p.address || '';
+  document.getElementById('p-url').value = p.url || '';
+  document.getElementById('p-note').value = p.note || '';
+  // Change button to save mode
+  const btn = document.querySelector('[onclick="window.addPocket()"]');
+  if (btn) {
+    btn.textContent = '💾 儲存修改';
+    btn.onclick = async () => {
+      await updatePocketItem(id, {
+        name: document.getElementById('p-name').value.trim(),
+        type: document.getElementById('p-type').value,
+        area: document.getElementById('p-area').value.trim(),
+        address: document.getElementById('p-address').value.trim(),
+        url: document.getElementById('p-url').value.trim(),
+        note: document.getElementById('p-note').value.trim(),
+        lat: null, lng: null, // reset coords so map re-geocodes
+      });
+      btn.textContent = '加入口袋清單';
+      btn.onclick = window.addPocket;
+      ['p-name','p-type','p-area','p-address','p-url','p-note'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    };
+  }
+  // Scroll to top of form
+  document.querySelector('.form-card')?.scrollIntoView({ behavior: 'smooth' });
+};
 
 window.addPocket = async function() {
   const name = document.getElementById('p-name')?.value.trim();
@@ -937,4 +978,5 @@ initFirebase();
 </script>
 </body>
 </html>
+
 
