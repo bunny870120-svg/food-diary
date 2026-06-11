@@ -171,6 +171,18 @@ const FIREBASE_CONFIG = {
   appId: "1:589127514473:web:8a0b73e0ec2d497ef3a5f8",
 };
 
+const CLOUDINARY_CLOUD = 'dbpkleehp';
+const CLOUDINARY_PRESET = 'a1oasxno';
+
+async function uploadPhoto(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method:'POST', body:fd });
+  const data = await res.json();
+  return data.secure_url;
+}
+
 async function initFirebase() {
   const app = initializeApp(FIREBASE_CONFIG);
   db = getDatabase(app);
@@ -345,6 +357,7 @@ function renderRestaurantCard(r) {
         </div>
         <div style="display:flex;gap:4px;align-items:center">
           ${r.revisit ? `<span class="badge badge-revisit">❤️ 再訪</span>` : ''}
+          <button class="icon-btn" onclick="window.openEdit('${r.id}')" aria-label="編輯">✏️</button>
           <button class="icon-btn" onclick="window.deleteR('${r.id}')" aria-label="刪除">🗑</button>
         </div>
       </div>
@@ -358,6 +371,7 @@ function renderRestaurantCard(r) {
         </span>
       </div>
       ${r.note ? `<div class="r-note">${esc(r.note)}</div>` : ''}
+      ${r.photos && r.photos.length > 0 ? `<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">${r.photos.map(url=>`<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border);cursor:pointer" onclick="window.open('${url}','_blank')" />`).join('')}</div>` : ''}
       <div class="r-footer">
         <div class="r-stars">${r.rating > 0 ? stars : '<span style="font-size:12px;color:var(--text-3)">未評分</span>'}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank">📍 Google Maps</a>
@@ -411,6 +425,15 @@ function renderAddForm(container) {
           <input type="hidden" id="f-review" value="0" />
           <input type="hidden" id="f-revisit" value="0" />
         </div>
+      </div>
+      <div class="field">
+        <label>照片（最多3張）</label>
+        <div id="photo-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <label style="display:inline-block;padding:8px 16px;border-radius:var(--radius-sm);border:1.5px dashed var(--border-2);cursor:pointer;font-size:14px;color:var(--text-2)">
+          📷 選擇照片
+          <input type="file" id="f-photos" accept="image/*" multiple style="display:none" onchange="window.previewPhotos(this)" />
+        </label>
+        <span id="photo-status" style="font-size:12px;color:var(--text-3);margin-left:8px"></span>
       </div>
       <div class="field">
         <label>筆記（推薦菜、心得...）</label>
@@ -476,7 +499,10 @@ window.submitForm = async function() {
   const date = document.getElementById('f-date')?.value;
   if (!name) { alert('請輸入餐廳名稱'); return; }
   if (!date) { alert('請選擇日期'); return; }
-  await addRestaurant({
+  const submitBtn = document.querySelector('[onclick="window.submitForm()"]');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '儲存中...'; }
+  const newPhotos = await uploadPhotos(selectedPhotos);
+  const data = {
     name, date,
     addedBy: document.getElementById('f-who')?.value.trim() || '',
     area: document.getElementById('f-area')?.value.trim() || '',
@@ -487,8 +513,19 @@ window.submitForm = async function() {
     review: document.getElementById('f-review')?.value === '1',
     revisit: document.getElementById('f-revisit')?.value === '1',
     note: document.getElementById('f-note')?.value.trim() || '',
-    createdAt: Date.now(),
-  });
+  };
+  if (editingRestaurantId) {
+    const existing = restaurants.find(x => x.id === editingRestaurantId);
+    data.photos = [...(existing?.photos || []), ...newPhotos];
+    data.createdAt = existing?.createdAt || Date.now();
+    await updateRestaurant(editingRestaurantId, data);
+    editingRestaurantId = null;
+  } else {
+    data.photos = newPhotos;
+    data.createdAt = Date.now();
+    await addRestaurant(data);
+  }
+  selectedPhotos = [];
   ['photo','review','revisit'].forEach(f => { const b=document.getElementById('btn-'+f); if(b){b.style.background='var(--bg)';b.style.color='var(--text)';b.style.borderColor='var(--border-2)';} const i=document.getElementById('f-'+f); if(i)i.value='0'; });
   window.switchTab('list');
 };
@@ -506,6 +543,83 @@ window.toggleField = async function(id, field) {
 
 window.deleteR = async function(id) {
   if (confirm('確定要刪除這筆記錄嗎？')) await deleteRestaurant(id);
+};
+
+// ── PHOTO UPLOAD ──
+let selectedPhotos = [];
+
+window.previewPhotos = function(input) {
+  const files = Array.from(input.files).slice(0, 3);
+  selectedPhotos = files;
+  const preview = document.getElementById('photo-preview');
+  const status = document.getElementById('photo-status');
+  if (!preview) return;
+  preview.innerHTML = files.map((f,i) => {
+    const url = URL.createObjectURL(f);
+    return `<div style="position:relative;width:72px;height:72px">
+      <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border)" />
+      <button onclick="window.removePhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--coral);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+    </div>`;
+  }).join('');
+  status.textContent = files.length > 0 ? `已選 ${files.length} 張` : '';
+};
+
+window.removePhoto = function(idx) {
+  selectedPhotos.splice(idx, 1);
+  const dt = new DataTransfer();
+  selectedPhotos.forEach(f => dt.items.add(f));
+  const input = document.getElementById('f-photos');
+  if (input) input.files = dt.files;
+  window.previewPhotos({ files: dt.files });
+};
+
+async function uploadPhotos(files) {
+  if (!files || files.length === 0) return [];
+  const status = document.getElementById('photo-status');
+  const urls = [];
+  for (let i = 0; i < files.length; i++) {
+    if (status) status.textContent = `上傳中 ${i+1}/${files.length}...`;
+    try { urls.push(await uploadPhoto(files[i])); } catch(e) { console.error('Upload failed', e); }
+  }
+  if (status) status.textContent = `✅ 上傳完成`;
+  return urls;
+}
+
+// ── EDIT ──
+let editingRestaurantId = null;
+
+window.openEdit = async function(id) {
+  const r = restaurants.find(x => x.id === id);
+  if (!r) return;
+  editingRestaurantId = id;
+  window.switchTab('add');
+  await new Promise(res => setTimeout(res, 50));
+  document.getElementById('f-name').value = r.name || '';
+  document.getElementById('f-date').value = r.date || '';
+  document.getElementById('f-who').value = r.addedBy || '';
+  document.getElementById('f-area').value = r.area || '';
+  document.getElementById('f-type').value = r.type || '';
+  document.getElementById('f-price').value = r.price || '';
+  document.getElementById('f-note').value = r.note || '';
+  currentRating = r.rating || 0;
+  updateStarDisplay();
+  ['photo','review','revisit'].forEach(f => {
+    const btn = document.getElementById('btn-'+f);
+    const inp = document.getElementById('f-'+f);
+    if (!btn || !inp) return;
+    inp.value = r[f] ? '1' : '0';
+    btn.style.background = r[f] ? 'var(--coral)' : 'var(--bg)';
+    btn.style.color = r[f] ? '#fff' : 'var(--text)';
+    btn.style.borderColor = r[f] ? 'var(--coral)' : 'var(--border-2)';
+  });
+  // Show existing photos
+  const preview = document.getElementById('photo-preview');
+  if (preview && r.photos && r.photos.length > 0) {
+    preview.innerHTML = r.photos.map(url => `<img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border)" />`).join('');
+  }
+  // Change button text
+  const btn = document.querySelector('[onclick="window.submitForm()"]');
+  if (btn) btn.textContent = '💾 儲存修改';
 };
 
 // ── ICON PICKER ──
@@ -641,3 +755,4 @@ initFirebase();
 </script>
 </body>
 </html>
+
