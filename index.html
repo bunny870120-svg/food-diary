@@ -175,6 +175,7 @@ async function initFirebase() {
   const app = initializeApp(FIREBASE_CONFIG);
   db = getDatabase(app);
   listenToData();
+  listenToPocket();
 }
 
 function listenToData() {
@@ -206,7 +207,7 @@ function renderApp() {
   app.innerHTML = `
     <div class="header">
       <div class="header-inner">
-        <h1>🍜 美食日記</h1>
+        <h1 id="app-title" onclick="window.openIconPicker()" style="cursor:pointer" title="點我換icon">${currentIcon} 美食日記</h1>
         <div class="header-actions">
           <button class="btn btn-sm" onclick="window.showAddModal()">＋ 新增</button>
         </div>
@@ -217,6 +218,7 @@ function renderApp() {
         <div class="tab active" id="tab-list" onclick="window.switchTab('list')">📋 清單</div>
         <div class="tab" id="tab-add" onclick="window.switchTab('add')">＋ 新增</div>
         <div class="tab" id="tab-stats" onclick="window.switchTab('stats')">📊 統計</div>
+        <div class="tab" id="tab-pocket" onclick="window.switchTab('pocket')">🔖 口袋</div>
       </div>
     </div>
     <div class="content" id="main-content"></div>
@@ -253,7 +255,7 @@ function renderConfig() {
 
 
 window.switchTab = function(tab) {
-  ['list','add','stats'].forEach(t => {
+  ['list','add','stats','pocket'].forEach(t => {
     const el = document.getElementById('tab-'+t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -261,6 +263,7 @@ window.switchTab = function(tab) {
   if (tab === 'list') renderList(content);
   if (tab === 'add') renderAddForm(content);
   if (tab === 'stats') renderStats(content);
+  if (tab === 'pocket') renderPocket(content);
 };
 
 window.showAddModal = function() {
@@ -278,10 +281,10 @@ function renderStats(container) {
   const topType = Object.entries(types).sort((a,b)=>b[1]-a[1])[0];
   container.innerHTML = `
     <div class="stats" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
-      <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">總共吃了幾家</div></div>
-      <div class="stat"><div class="stat-num" style="color:${noReview>0?'#A32D2D':'inherit'}">${noReview}</div><div class="stat-label">待寫評論</div></div>
-      <div class="stat"><div class="stat-num" style="color:${noPhoto>0?'#854F0B':'inherit'}">${noPhoto}</div><div class="stat-label">待補照片</div></div>
-      <div class="stat"><div class="stat-num">${revisit}</div><div class="stat-label">想再訪</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.switchTab('list');window.setFilter('all')"><div class="stat-num">${total}</div><div class="stat-label">總共吃了幾家 →</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.switchTab('list');window.setFilter('no-review')"><div class="stat-num" style="color:${noReview>0?'#A32D2D':'inherit'}">${noReview}</div><div class="stat-label">待寫評論 →</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.switchTab('list');window.setFilter('no-photo')"><div class="stat-num" style="color:${noPhoto>0?'#854F0B':'inherit'}">${noPhoto}</div><div class="stat-label">待補照片 →</div></div>
+      <div class="stat" style="cursor:pointer" onclick="window.switchTab('list');window.setFilter('revisit')"><div class="stat-num">${revisit}</div><div class="stat-label">想再訪 →</div></div>
       <div class="stat"><div class="stat-num">${avgRating}</div><div class="stat-label">平均評分</div></div>
       <div class="stat"><div class="stat-num" style="font-size:16px">${topType ? topType[0] : '-'}</div><div class="stat-label">最愛料理類型</div></div>
     </div>
@@ -503,6 +506,131 @@ window.toggleField = async function(id, field) {
 
 window.deleteR = async function(id) {
   if (confirm('確定要刪除這筆記錄嗎？')) await deleteRestaurant(id);
+};
+
+// ── ICON PICKER ──
+const ICONS = ['🍜','🍣','🍕','🍔','🌮','🍱','🍛','🥘','🍲','🥗','🍰','☕','🥩','🍗','🍤','🦞','🍺','🥂','🍩','🧁'];
+let currentIcon = localStorage.getItem('fooddiary_icon') || '🍜';
+
+window.openIconPicker = function() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:640px;padding:20px 20px 40px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">選擇你的美食 Icon</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+        ${ICONS.map(ic => `<button onclick="window.setIcon('${ic}',this.closest('.overlay-wrap').parentNode)" style="font-size:28px;padding:8px;border:2px solid ${ic===currentIcon?'var(--coral)':'transparent'};border-radius:12px;background:var(--bg-2);cursor:pointer">${ic}</button>`).join('')}
+      </div>
+      <button onclick="this.closest('[style]').remove()" style="margin-top:16px;width:100%;padding:12px;border-radius:12px;border:none;background:var(--bg-2);font-size:15px;cursor:pointer">取消</button>
+    </div>
+  `;
+  overlay.querySelector('div').classList.add('overlay-wrap');
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+window.setIcon = function(icon, overlay) {
+  currentIcon = icon;
+  localStorage.setItem('fooddiary_icon', icon);
+  document.getElementById('app-title').textContent = icon + ' 美食日記';
+  if(overlay) overlay.remove();
+};
+
+// ── POCKET LIST ──
+let pocketList = [];
+
+function listenToPocket() {
+  const pocketRef = ref(db, 'pocket');
+  onValue(pocketRef, snap => {
+    pocketList = [];
+    const val = snap.val();
+    if (val) Object.entries(val).forEach(([id, data]) => pocketList.push({ id, ...data }));
+    pocketList.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+    const content = document.getElementById('main-content');
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.id === 'tab-pocket' && content) renderPocket(content);
+  });
+}
+
+async function addPocketItem(data) { await push(ref(db, 'pocket'), data); }
+async function deletePocketItem(id) { await remove(ref(db, 'pocket/'+id)); }
+async function updatePocketItem(id, data) { await update(ref(db, 'pocket/'+id), data); }
+
+function renderPocket(container) {
+  container.innerHTML = `
+    <div class="form-card">
+      <h2>🔖 想去清單</h2>
+      <div class="field"><label>餐廳名稱 *</label><input id="p-name" placeholder="例：祥雲龍吟" /></div>
+      <div class="row2">
+        <div class="field"><label>類型</label>
+          <select id="p-type">
+            <option value="">選擇...</option>
+            ${['台灣料理','日式','韓式','義式','法式','中式','泰式','美式','早午餐','甜點／咖啡','火鍋','燒肉','其他'].map(t=>`<option>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>地區</label><input id="p-area" placeholder="例：中山區" /></div>
+      </div>
+      <div class="field"><label>Google Maps 連結（選填）</label><input id="p-url" placeholder="貼上 maps.app.goo.gl/... 連結" /></div>
+      <div class="field"><label>備註</label><input id="p-note" placeholder="例：朋友推薦、需要訂位" /></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="window.addPocket()">加入口袋清單</button>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text-3);margin-bottom:10px">${pocketList.length} 間等你去探索</div>
+    ${pocketList.length === 0
+      ? '<div class="empty"><div class="empty-icon">🗺️</div>還沒有想去的地方，快去 Google Maps 找！</div>'
+      : pocketList.map(p => `
+        <div class="r-card">
+          <div class="r-header">
+            <div>
+              <div class="r-name">${esc(p.name)}</div>
+              <div class="r-meta">${[p.type,p.area].filter(Boolean).join(' · ')}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn btn-primary" style="font-size:12px;padding:5px 10px" onclick="window.pocketToVisited('${p.id}')">✅ 去過了！</button>
+              <button class="icon-btn" onclick="window.deletePocket('${p.id}')">🗑</button>
+            </div>
+          </div>
+          ${p.note ? `<div style="font-size:13px;color:var(--text-2);margin-bottom:8px">${esc(p.note)}</div>` : ''}
+          <div style="display:flex;gap:10px;align-items:center">
+            ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="maps-link">📍 Google Maps</a>` : ''}
+          </div>
+        </div>
+      `).join('')
+    }
+  `;
+}
+
+window.addPocket = async function() {
+  const name = document.getElementById('p-name')?.value.trim();
+  if (!name) { alert('請輸入餐廳名稱'); return; }
+  await addPocketItem({
+    name,
+    type: document.getElementById('p-type')?.value || '',
+    area: document.getElementById('p-area')?.value.trim() || '',
+    url: document.getElementById('p-url')?.value.trim() || '',
+    note: document.getElementById('p-note')?.value.trim() || '',
+    createdAt: Date.now(),
+  });
+};
+
+window.deletePocket = async function(id) {
+  if (confirm('確定移除？')) await deletePocketItem(id);
+};
+
+window.pocketToVisited = async function(id) {
+  const p = pocketList.find(x => x.id === id);
+  if (!p) return;
+  await deletePocketItem(id);
+  await addRestaurant({
+    name: p.name, type: p.type || '', area: p.area || '',
+    date: new Date().toISOString().slice(0,10),
+    addedBy: '', price: '', rating: 0,
+    photo: false, review: false, revisit: false,
+    note: p.note || '', createdAt: Date.now(),
+  });
+  window.switchTab('add');
+  alert('已移到吃過清單！記得補上評分和心得 😋');
 };
 
 function esc(s) {
